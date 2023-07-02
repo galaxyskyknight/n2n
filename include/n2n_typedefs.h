@@ -19,6 +19,7 @@
 #ifndef _N2N_TYPEDEFS_H_
 #define _N2N_TYPEDEFS_H_
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>     // for uint8_t and friends
 #ifndef _WIN32
