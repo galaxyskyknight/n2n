@@ -3,10 +3,11 @@ all:
 
 export CC
 export AR
+export EXE
 export CFLAGS
 export LDFLAGS
 export LDLIBS
-export TOOLS_ADDITIONAL
+export CONFIG_HOST_OS
 
 -include config.mak
 
@@ -39,24 +40,6 @@ ifndef UNAME_S
 $(error Could not run uname command, cannot continue)
 endif
 
-# Any compile environment that needs different flags, libraries, includes or
-# other settings will get its own CONFIG_TARGET value.  For cross compiling,
-# this might be set externally to the Makefile, but if not set we try to
-# set a reasonable default.
-
-export CONFIG_TARGET
-ifndef CONFIG_TARGET
-ifeq ($(shell uname -o),Msys)
-CONFIG_TARGET=mingw
-else ifeq ($(shell uname -s),Darwin)
-CONFIG_TARGET=darwin
-else ifeq ($(shell uname), SunOS)
-CONFIG_TARGET=sunos
-else
-CONFIG_TARGET=generic
-endif
-endif
-
 export MKDIR
 export INSTALL
 export INSTALL_PROG
@@ -69,13 +52,9 @@ INSTALL_PROG=$(INSTALL) -m755
 INSTALL_DOC=$(INSTALL) -m644
 
 # DESTDIR set in debian make system
-PREFIX?=$(DESTDIR)/usr
-ifeq ($(CONFIG_TARGET),darwin)
-SBINDIR=$(PREFIX)/local/sbin
-else
-SBINDIR=$(PREFIX)/sbin
-endif
+PREFIX?=$(DESTDIR)/$(CONFIG_PREFIX)
 
+SBINDIR=$(PREFIX)/sbin
 MANDIR?=$(PREFIX)/share/man
 MAN1DIR=$(MANDIR)/man1
 MAN7DIR=$(MANDIR)/man7
@@ -159,32 +138,26 @@ LINT_CCODE=\
 	tools/tests-transform.c \
 	tools/tests-wire.c \
 
-
 LDLIBS+=-ln2n
+ifneq (,$(findstring mingw,$(CONFIG_HOST_OS)))
+LDLIBS+=$(abspath win32/n2n_win32.a)
+endif
 LDLIBS+=$(LDLIBS_EXTRA)
 
-#For OpenSolaris (Solaris too?)
-ifeq ($(CONFIG_TARGET), sunos)
-LDLIBS+=-lsocket -lnsl
-endif
-
-ifeq ($(CONFIG_TARGET),mingw)
-CFLAGS+=-I. -I./win32
-LDLIBS+=$(abspath win32/n2n_win32.a)
-LDLIBS+=-lnetapi32 -lws2_32 -liphlpapi
+ifneq (,$(findstring mingw,$(CONFIG_HOST_OS)))
 N2N_DEPS+=win32/n2n_win32.a
 SUBDIRS+=win32
 endif
 
-APPS=edge
-APPS+=supernode
-APPS+=example_edge_embed_quick_edge_init
-APPS+=example_edge_embed
-APPS+=example_sn_embed
+APPS=edge$(EXE)
+APPS+=supernode$(EXE)
+APPS+=example_edge_embed_quick_edge_init$(EXE)
+APPS+=example_edge_embed$(EXE)
+APPS+=example_sn_embed$(EXE)
 
 DOCS=edge.8.gz supernode.1.gz n2n.7.gz
 
-# This is the superset of all packages that might be needed during the build.
+# This is the list of Debian/Ubuntu packages that are needed during the build.
 # Mostly of use in automated build systems.
 BUILD_DEP:=\
 	autoconf \
@@ -234,8 +207,13 @@ src/example_edge_embed_quick_edge_init: $(N2N_LIB)
 src/example_sn_embed: $(N2N_LIB)
 src/example_edge_embed: $(N2N_LIB)
 
-ifeq ($(CONFIG_TARGET), mingw)
+ifneq (,$(findstring mingw,$(CONFIG_HOST_OS)))
 src/edge: win32/edge_rc.o
+src/edge.exe: src/edge
+src/supernode.exe: src/supernode
+src/example_edge_embed_quick_edge_init.exe: src/example_edge_embed_quick_edge_init
+src/example_sn_embed.exe: src/example_sn_embed
+src/example_edge_embed.exe: src/example_edge_embed
 endif
 
 %: src/%
@@ -294,14 +272,20 @@ gcov:
 
 # This is a convinent target to use during development or from a CI/CD system
 .PHONY: build-dep
-build-dep:
-ifeq ($(CONFIG_TARGET),generic)
-	sudo apt install $(BUILD_DEP)
-else ifeq ($(CONFIG_TARGET),darwin)
-	brew install automake gcovr
+
+ifneq (,$(findstring darwin,$(CONFIG_HOST_OS)))
+build-dep: build-dep-brew
 else
-	echo Not attempting to install dependancies for system $(CONFIG_TARGET)
+build-dep: build-dep-dpkg
 endif
+
+.PHONY: build-dep-dpkg
+build-dep-dpkg:
+	sudo apt install $(BUILD_DEP)
+
+.PHONY: build-dep-brew
+build-dep-brew:
+	brew install automake gcovr
 
 .PHONY: clean
 clean:
@@ -322,11 +306,11 @@ distclean:
 	rm -f $(addprefix src/,$(APPS))
 
 .PHONY: install
-install: edge supernode edge.8.gz supernode.1.gz n2n.7.gz
+install: edge$(EXE) supernode$(EXE) edge.8.gz supernode.1.gz n2n.7.gz
 	echo "MANDIR=$(MANDIR)"
 	$(MKDIR) $(SBINDIR) $(MAN1DIR) $(MAN7DIR) $(MAN8DIR)
-	$(INSTALL_PROG) supernode $(SBINDIR)/
-	$(INSTALL_PROG) edge $(SBINDIR)/
+	$(INSTALL_PROG) supernode$(EXE) $(SBINDIR)/
+	$(INSTALL_PROG) edge$(EXE) $(SBINDIR)/
 	$(INSTALL_DOC) edge.8.gz $(MAN8DIR)/
 	$(INSTALL_DOC) supernode.1.gz $(MAN1DIR)/
 	$(INSTALL_DOC) n2n.7.gz $(MAN7DIR)/
