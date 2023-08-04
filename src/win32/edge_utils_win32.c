@@ -16,11 +16,43 @@
  *
  */
 
-#ifdef _WIN32
-
-#include <winsock2.h>
+#include "defs.h"
+#include <iphlpapi.h>
 
 #include "edge_utils_win32.h"
+
+/* ************************************** */
+
+#ifndef _WIN64
+/*
+ * This function was not included in windows until after Windows XP
+ */
+
+const char *subst_inet_ntop (int af, const void *src, char *dst, int size) {
+    if(af == AF_INET) {
+        struct sockaddr_in in;
+        memset(&in, 0, sizeof(in));
+
+        in.sin_family = AF_INET;
+        memcpy(&in.sin_addr, src, sizeof(in.sin_addr));
+        getnameinfo((struct sockaddr *)&in,sizeof(in),dst,size,NULL,0,NI_NUMERICHOST);
+        return dst;
+    }
+
+    if(af == AF_INET6) {
+        struct sockaddr_in6 in6;
+        memset(&in6, 0, sizeof(in6));
+
+        in6.sin6_family = AF_INET6;
+        memcpy(&in6.sin6_addr, src, sizeof(in6.sin6_addr));
+        getnameinfo((struct sockaddr *)&in6,sizeof(in6),dst,size,NULL,0,NI_NUMERICHOST);
+        return dst;
+    }
+
+    return NULL;
+}
+
+#endif /* _WIN64 */
 
 /* ************************************** */
 
@@ -107,7 +139,3 @@ int get_best_interface_ip (n2n_edge_t * eee, dec_ip_str_t *ip_addr){
     }
     return 0;
 }
-
-
-#endif
-

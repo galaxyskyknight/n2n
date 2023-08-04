@@ -68,7 +68,6 @@ N2N_OBJS=\
 	src/curve25519.o \
 	src/edge_management.o \
 	src/edge_utils.o \
-	src/edge_utils_win32.o \
 	src/header_encryption.o \
 	src/hexdump.o \
 	src/json.o \
@@ -103,8 +102,8 @@ N2N_DEPS=$(wildcard include/*.h) $(wildcard src/*.c) config.mak
 # As source files pass the linter, they can be added here (If all the source
 # is passing the linter tests, this can be refactored)
 LINT_CCODE=\
+	examples/example_edge_embed_quick_edge_init.c \
 	include/curve25519.h \
-	include/edge_utils_win32.h \
 	include/header_encryption.h \
 	include/hexdump.h \
 	include/n2n_define.h \
@@ -116,8 +115,6 @@ LINT_CCODE=\
 	include/speck.h \
 	include/tf.h \
 	src/edge_management.c \
-	src/edge_utils_win32.c \
-	src/example_edge_embed_quick_edge_init.c \
 	src/header_encryption.c \
 	src/management.c \
 	src/management.h \
@@ -130,6 +127,8 @@ LINT_CCODE=\
 	src/tuntap_linux.c \
 	src/tuntap_netbsd.c \
 	src/tuntap_osx.c \
+	src/win32/edge_utils_win32.c \
+	src/win32/edge_utils_win32.h \
 	src/wire.c \
 	tools/tests-auth.c \
 	tools/tests-compress.c \
@@ -139,21 +138,10 @@ LINT_CCODE=\
 	tools/tests-wire.c \
 
 LDLIBS+=-ln2n
-ifneq (,$(findstring mingw,$(CONFIG_HOST_OS)))
-LDLIBS+=$(abspath win32/n2n_win32.a)
-endif
 LDLIBS+=$(LDLIBS_EXTRA)
-
-ifneq (,$(findstring mingw,$(CONFIG_HOST_OS)))
-N2N_DEPS+=win32/n2n_win32.a
-SUBDIRS+=win32
-endif
 
 APPS=edge$(EXE)
 APPS+=supernode$(EXE)
-APPS+=example_edge_embed_quick_edge_init$(EXE)
-APPS+=example_edge_embed$(EXE)
-APPS+=example_sn_embed$(EXE)
 
 DOCS=edge.8.gz supernode.1.gz n2n.7.gz
 
@@ -171,6 +159,7 @@ BUILD_DEP:=\
 	yamllint \
 
 SUBDIRS+=tools
+SUBDIRS+=examples
 
 COVERAGEDIR?=coverage
 
@@ -186,35 +175,29 @@ version:
 	@echo -n "Build for version: "
 	@scripts/version.sh
 
-tools: $(N2N_LIB)
+examples tools: $(N2N_LIB)
 	$(MAKE) -C $@
-
-win32:
-	$(MAKE) -C $@
-
-win32/edge_rc.o: win32/edge.rc win32/edge.manifest
-	$(WINDRES) win32/edge.rc -O coff -o win32/edge_rc.o
 
 src/edge.o: $(N2N_DEPS)
 src/supernode.o: $(N2N_DEPS)
-src/example_edge_embed_quick_edge_init.o: $(N2N_DEPS)
-src/example_sn_embed.o: $(N2N_DEPS)
-src/example_edge_embed.o: $(N2N_DEPS)
 
 src/edge: $(N2N_LIB)
 src/supernode: $(N2N_LIB)
-src/example_edge_embed_quick_edge_init: $(N2N_LIB)
-src/example_sn_embed: $(N2N_LIB)
-src/example_edge_embed: $(N2N_LIB)
 
 ifneq (,$(findstring mingw,$(CONFIG_HOST_OS)))
-src/edge: win32/edge_rc.o
+N2N_OBJS+=src/win32/edge_utils_win32.o
+N2N_OBJS+=src/win32/getopt1.o
+N2N_OBJS+=src/win32/getopt.o
+N2N_OBJS+=src/win32/wintap.o
+N2N_OBJS+=src/win32/edge_rc.o
+endif
+
+src/win32/edge.rc: src/win32/edge.manifest
+src/win32/edge_rc.o: src/win32/edge.rc
+	$(WINDRES) $< -O coff -o $@
+
 src/edge.exe: src/edge
 src/supernode.exe: src/supernode
-src/example_edge_embed_quick_edge_init.exe: src/example_edge_embed_quick_edge_init
-src/example_sn_embed.exe: src/example_sn_embed
-src/example_edge_embed.exe: src/example_edge_embed
-endif
 
 %: src/%
 	cp $< $@
@@ -225,8 +208,6 @@ endif
 $(N2N_LIB): $(N2N_OBJS)
 	$(AR) rcs $(N2N_LIB) $(N2N_OBJS)
 #	$(RANLIB) $@
-
-win32/n2n_win32.a: win32
 
 .PHONY: test test.units test.integration
 test: test.units test.integration
@@ -289,7 +270,7 @@ build-dep-brew:
 
 .PHONY: clean
 clean:
-	rm -f src/edge.o src/supernode.o src/example_edge_embed.o src/example_edge_embed_quick_edge_init.o src/example_sn_embed.o
+	rm -f src/edge.o src/supernode.o
 	rm -rf $(N2N_OBJS) $(N2N_LIB) $(APPS) $(DOCS) $(COVERAGEDIR)/ *.dSYM *~
 	rm -f tests/*.out src/*.gcno src/*.gcda
 	for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done

@@ -41,9 +41,8 @@
 #include "uthash.h"                  // for UT_hash_handle, HASH_COUNT, HASH...
 
 #ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include "edge_utils_win32.h"
+#include "win32/defs.h"
+#include "win32/edge_utils_win32.h"
 #else
 #include <arpa/inet.h>               // for inet_ntoa, inet_addr, inet_ntop
 #include <netinet/in.h>              // for sockaddr_in, ntohl, IPPROTO_IP
@@ -2182,10 +2181,8 @@ void edge_read_from_tap (n2n_edge_t * eee) {
         sleep(3);
         tuntap_close(&(eee->device));
         tuntap_open(&(eee->device), eee->tuntap_priv_conf.tuntap_dev_name, eee->tuntap_priv_conf.ip_mode, eee->tuntap_priv_conf.ip_addr,
-                    eee->tuntap_priv_conf.netmask, eee->tuntap_priv_conf.device_mac, eee->tuntap_priv_conf.mtu
-#ifdef _WIN32
-				   ,eee->tuntap_priv_conf.metric
-#endif
+                    eee->tuntap_priv_conf.netmask, eee->tuntap_priv_conf.device_mac, eee->tuntap_priv_conf.mtu,
+                    eee->tuntap_priv_conf.metric
                     );
     } else {
         const uint8_t * mac = eth_pkt;
@@ -3295,11 +3292,8 @@ int quick_edge_init (char *device_name, char *community_name,
     /* Open the tuntap device */
     if(tuntap_open(&tuntap, device_name, "static",
                    local_ip_address, "255.255.255.0",
-                   device_mac, DEFAULT_MTU
-#ifdef _WIN32
-				 , 0
-#endif
-                   ) < 0)
+                   device_mac, DEFAULT_MTU,
+                   0) < 0)
         return(-2);
 
     /* Init edge */
