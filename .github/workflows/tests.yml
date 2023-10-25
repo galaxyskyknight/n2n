@@ -410,7 +410,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install debhelper build-essential \
+            devscripts \
             crossbuild-essential-${{ matrix.arch }}
+
+      - name: Hack dpkg-shlibdeps
+        run: |
+          echo '#!/bin/bash' | sudo tee /usr/bin/dpkg-shlibdeps
 
       - name: Configure
         # The HOST_TRIPLET line is not easily foldable
@@ -420,8 +425,6 @@ jobs:
           HOST_TRIPLET=$(dpkg-architecture -a${{ matrix.arch }} -q DEB_HOST_GNU_TYPE)
           ./autogen.sh
           ./configure --host $HOST_TRIPLET
-          cd packages/debian/
-          ./configure EXTN=${{ matrix.arch }}
         # yamllint enable rule:line-length
 
       - name: Build

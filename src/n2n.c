@@ -528,6 +528,7 @@ struct peer_info* add_sn_to_list_by_mac_or_sock (struct peer_info **sn_list, n2n
             if(peer) {
                 sn_selection_criterion_default(&(peer->selection_criterion));
                 peer->last_valid_time_stamp = initial_time_stamp();
+                peer->purgeable = true;
                 memcpy(&(peer->sock), sock, sizeof(n2n_sock_t));
                 memcpy(peer->mac_addr, mac, sizeof(n2n_mac_t));
                 HASH_ADD_PEER(*sn_list, peer);
@@ -687,7 +688,7 @@ size_t clear_peer_list (struct peer_info ** peer_list) {
     size_t retval = 0;
 
     HASH_ITER(hh, *peer_list, scan, tmp) {
-        if (scan->purgeable == false && scan->ip_addr) {
+        if (!scan->purgeable && scan->ip_addr) {
             free(scan->ip_addr);
         }
         HASH_DEL(*peer_list, scan);

@@ -381,7 +381,10 @@ static void handleMgmtJson (mgmt_req_t *req, char *udp_buf, const int recvlen) {
     /* we reuse the buffer already on the stack for all our strings */
     STRBUF_INIT(buf, udp_buf, N2N_SN_PKTBUF_SIZE);
 
-    mgmt_req_init2(req, buf, (char *)&cmdlinebuf);
+    if(!mgmt_req_init2(req, buf, (char *)&cmdlinebuf)) {
+        // if anything failed during init
+        return;
+    }
 
     if(req->type == N2N_MGMT_SUB) {
         int handler;
@@ -607,7 +610,7 @@ void readFromMgmtSocket (n2n_edge_t *eee) {
         msg_len += snprintf((char *) (udp_buf + msg_len), (N2N_PKT_BUF_SIZE - msg_len),
                             "%-19s %1s%1s | %-17s | %-21s | %-15s | %9s | %10s\n",
                             peer->version,
-                            (peer->purgeable == false) ? "l" : "",
+                            (peer->purgeable) ? "" : "l",
                             (peer == eee->curr_sn) ? (eee->sn_wait ? "." : "*" ) : "",
                             is_null_mac(peer->mac_addr) ? "" : macaddr_str(mac_buf, peer->mac_addr),
                             sock_to_cstr(sockbuf, &(peer->sock)),
